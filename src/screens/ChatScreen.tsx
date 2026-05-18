@@ -102,6 +102,23 @@ interface LocalMessage extends Message {
   tier?: ModerationTier;
 }
 
+function SpinningIcon({source, style}: {source: any; style: any}) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, {toValue: 1, duration: 1000, useNativeDriver: true}),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+  return (
+    <Animated.Image
+      source={source}
+      style={[style, {transform: [{rotate: anim.interpolate({inputRange: [0, 1], outputRange: ['0deg', '360deg']})}]}]}
+    />
+  );
+}
+
 export const ChatScreen = ({navigation, route}: any) => {
   const {role, user, channel} = route.params as {
     role: string;
@@ -493,7 +510,7 @@ export const ChatScreen = ({navigation, route}: any) => {
                 style={styles.translateHeaderBtn}
                 hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}>
                 {translating[item.id] || (item.translation_path === 'on_device' && onDeviceModelState === 'loading' && !translations[item.id])
-                  ? <ActivityIndicator size="small" color={ts} style={{width: 14, height: 14}} />
+                  ? <SpinningIcon source={icons.languages} style={[styles.translateIcon, {tintColor: ts}]} />
                   : <Image source={icons.languages} style={[styles.translateIcon, {tintColor: translations[item.id] ? acc : (item.translation_path === 'on_device' ? '#A78BFA' : ts)}]} />}
               </TouchableOpacity>
             )}
@@ -630,7 +647,7 @@ export const ChatScreen = ({navigation, route}: any) => {
               : {backgroundColor: acc + '22', borderTopColor: acc + '55'},
           ]}>
             <Animated.Image
-              source={require('../../assets/branding/keepup-icon-white.png')}
+              source={require('../../assets/branding/keepup-icon-blwh-inverted.png')}
               style={[styles.analyzingIcon, {
                 tintColor: sendResult === 'success' ? '#16a34a' : acc,
                 transform: [{rotate: spinAnim.interpolate({inputRange: [0, 1], outputRange: ['0deg', '360deg']})}],

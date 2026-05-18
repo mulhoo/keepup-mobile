@@ -608,7 +608,7 @@ export const ChatScreen = ({navigation, route}: any) => {
         />
 
         {(analyzing || sending) && (
-          <View style={[styles.analyzingBar, {backgroundColor: sf, borderTopColor: bd}]}>
+          <View style={[styles.analyzingBar, {backgroundColor: acc + '22', borderTopColor: acc + '55'}]}>
             <ActivityIndicator size="small" color={acc} />
             <Text style={[styles.analyzingText, {color: acc}]}>Gemma reviewing your message{analyzingDots}</Text>
           </View>

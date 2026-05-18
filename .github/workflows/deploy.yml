@@ -24,7 +24,7 @@ jobs:
       - name: Build
         env:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          API_TIMEOUT: '15000'
+          API_TIMEOUT: '90000'
         run: npm run build:web
 
       - name: Configure AWS credentials

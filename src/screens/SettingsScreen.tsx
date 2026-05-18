@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Modal, Pressable, Image, Alert, ActivityIndicator, TextInput, Keyboard,
+  Modal, Pressable, Image, Alert, ActivityIndicator, TextInput, Keyboard, Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -140,10 +140,16 @@ export const SettingsScreen = ({navigation, route}: Props) => {
   }
 
   async function handleSwitchProfile() {
-    Alert.alert('Switch Profile', 'This will log you out of the current demo profile.', [
-      {text: 'Cancel', style: 'cancel'},
-      {text: 'Switch', style: 'destructive', onPress: async () => { await setTheme(DEFAULT_THEME); await logout(); navigation.reset('RoleSelect'); }},
-    ]);
+    if (Platform.OS === 'web') {
+      await setTheme(DEFAULT_THEME);
+      await logout();
+      navigation.reset('RoleSelect');
+    } else {
+      Alert.alert('Switch Profile', 'This will log you out of the current demo profile.', [
+        {text: 'Cancel', style: 'cancel'},
+        {text: 'Switch', style: 'destructive', onPress: async () => { await setTheme(DEFAULT_THEME); await logout(); navigation.reset('RoleSelect'); }},
+      ]);
+    }
   }
 
   const filteredThemes = themes.filter(t => t.variant === selectedVariant);

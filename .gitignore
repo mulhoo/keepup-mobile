@@ -90,3 +90,6 @@ yarn-error.log
 .vscode/
 .idea/
 .claude/
+
+# Web build output
+web-build/

@@ -8,6 +8,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {
   fetchMessages, sendMessage, toggleReaction, reportMessage, removeMessage,
   translateMessage, TranslationUnavailableError,
+  ensureModelLoaded, subscribeToModelState, getModelLoadState,
   type Message, type ModerationTier, type Reaction, type ReplyPreview,
 } from '../services/messages';
 import {api} from '../services/api';
@@ -143,9 +144,11 @@ export const ChatScreen = ({navigation, route}: any) => {
   const [preferredLanguage, setPreferredLanguage] = useState('');
   const [translations, setTranslations] = useState<Record<number, string>>({});
   const [translating, setTranslating] = useState<Record<number, boolean>>({});
+  const [onDeviceModelState, setOnDeviceModelState] = useState(getModelLoadState);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const infoIconRef = useRef<TouchableOpacity>(null);
   const listRef = useRef<FlatList>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isStudent = role === 'student';
   const isCoach   = role === 'head_coach' || role === 'assistant_coach' || role === 'athletic_director';
@@ -169,6 +172,19 @@ export const ChatScreen = ({navigation, route}: any) => {
       .then(me => setPreferredLanguage(me.preferred_language ?? ''))
       .catch(() => {});
   }, []);
+
+  // Subscribe to on-device model load state and pre-warm if any on_device messages exist
+  useEffect(() => {
+    const unsub = subscribeToModelState(state => setOnDeviceModelState(state));
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const hasOnDevice = messages.some(m => m.translation_path === 'on_device');
+    if (hasOnDevice && preferredLanguage.trim() && getModelLoadState() === 'idle') {
+      ensureModelLoaded().catch(() => {});
+    }
+  }, [messages, preferredLanguage]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -206,15 +222,12 @@ export const ChatScreen = ({navigation, route}: any) => {
     const content = text.trim();
     if (!content || sending) return;
     const replyToId = replyTo?.id;
-    setText('');
     setReplyTo(null);
-    setAnalyzing(true);
-    await new Promise<void>(resolve => setTimeout(resolve, 1200));
-    setAnalyzing(false);
     setSending(true);
     try {
       const result = await sendMessage(channel.id, content, channel.channel_type, replyToId);
       const tier = result.moderation.tier;
+      setText('');
       setMessages(prev => [...prev, {...result.message, content: result.message.content ?? content, tier}]);
       setTimeout(() => listRef.current?.scrollToOffset({offset: 0, animated: true}), 100);
       if (result.message.flag_action === 'blocked') {
@@ -222,6 +235,10 @@ export const ChatScreen = ({navigation, route}: any) => {
           'Message blocked',
           'Your message was flagged as inappropriate and was not delivered to others.',
         );
+      } else if (tier === 'questionable') {
+        showToast('Your message was flagged for coach review', 5000);
+      } else {
+        showToast('Message sent', 2000);
       }
     } catch (err: any) {
       const data = err?.response?.data;
@@ -232,7 +249,6 @@ export const ChatScreen = ({navigation, route}: any) => {
         );
       } else {
         Alert.alert('Could not send', 'Something went wrong. Please try again.');
-        setText(content);
       }
     } finally {
       setSending(false);
@@ -291,15 +307,18 @@ export const ChatScreen = ({navigation, route}: any) => {
     }
   }
 
-  function showToast(msg: string) {
+  function showToast(msg: string, duration = 3000) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    toastTimer.current = setTimeout(() => { setToastMsg(null); toastTimer.current = null; }, duration);
   }
 
   async function handleTranslate(messageId: number) {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg || !preferredLanguage.trim()) return;
     setTranslating(prev => ({...prev, [messageId]: true}));
     try {
-      const result = await translateMessage(messageId);
+      const result = await translateMessage(messageId, msg, preferredLanguage.trim());
       setTranslations(prev => ({...prev, [messageId]: result.translated_text}));
     } catch (err) {
       showToast('Currently unable to translate. Try again later.');
@@ -434,15 +453,23 @@ export const ChatScreen = ({navigation, route}: any) => {
             <Text style={[styles.timestamp, {color: ts}]}>{formatTime(item.created_at)}</Text>
             {isPending && <Text style={[styles.flagIcon, {color: '#EAB308'}]}>⚑</Text>}
             {isCleared && <Text style={[styles.flagIcon, {color: '#22C55E'}]}>⚑</Text>}
-            {item.translation_path === 'server' && preferredLanguage.trim() && (
+            {item.translation_path && preferredLanguage.trim() && (
               <TouchableOpacity
-                onPress={() => !translations[item.id] && handleTranslate(item.id)}
-                disabled={!!translating[item.id]}
+                onPress={() => {
+                  if (translations[item.id]) return;
+                  if (item.translation_path === 'on_device' && onDeviceModelState === 'idle') {
+                    ensureModelLoaded().catch(() => {});
+                    showToast('Loading Gemma 4 on-device model…');
+                    return;
+                  }
+                  handleTranslate(item.id);
+                }}
+                disabled={!!translating[item.id] || (item.translation_path === 'on_device' && onDeviceModelState === 'loading')}
                 style={styles.translateHeaderBtn}
                 hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}>
-                {translating[item.id]
+                {translating[item.id] || (item.translation_path === 'on_device' && onDeviceModelState === 'loading' && !translations[item.id])
                   ? <ActivityIndicator size="small" color={ts} style={{width: 14, height: 14}} />
-                  : <Image source={icons.languages} style={[styles.translateIcon, {tintColor: translations[item.id] ? acc : ts}]} />}
+                  : <Image source={icons.languages} style={[styles.translateIcon, {tintColor: translations[item.id] ? acc : (item.translation_path === 'on_device' ? '#A78BFA' : ts)}]} />}
               </TouchableOpacity>
             )}
           </View>
@@ -570,10 +597,10 @@ export const ChatScreen = ({navigation, route}: any) => {
           ListEmptyComponent={<Text style={[styles.emptyText, {color: ts}]}>No messages yet. Say something!</Text>}
         />
 
-        {analyzing && (
+        {(analyzing || sending) && (
           <View style={[styles.analyzingBar, {backgroundColor: sf, borderTopColor: bd}]}>
             <ActivityIndicator size="small" color={acc} />
-            <Text style={[styles.analyzingText, {color: acc}]}>Gemma analyzing on device…</Text>
+            <Text style={[styles.analyzingText, {color: acc}]}>Gemma reviewing your message…</Text>
           </View>
         )}
 

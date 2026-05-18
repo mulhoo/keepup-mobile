@@ -1,4 +1,7 @@
 import {api} from './api';
+import { translateOnDevice, ensureModelLoaded } from './onDeviceTranslation';
+
+export { ensureModelLoaded, subscribeToModelState, getModelLoadState } from './onDeviceTranslation';
 
 export interface Reaction {
   emoji: string;
@@ -126,7 +129,24 @@ export interface TranslationResult {
 
 export class TranslationUnavailableError extends Error {}
 
-export async function translateMessage(messageId: number): Promise<TranslationResult> {
+export async function translateMessage(
+  messageId: number,
+  message?: { content: string | null; translation_path: 'server' | 'on_device' | null },
+  targetLanguage?: string,
+): Promise<TranslationResult> {
+  if (message?.translation_path === 'on_device' && message.content && targetLanguage) {
+    // Privacy boundary: student content never leaves the device
+    const translated = await translateOnDevice(message.content, targetLanguage);
+    return {
+      message_id: messageId,
+      original_text: message.content,
+      translated_text: translated,
+      target_language: targetLanguage,
+      language_name: targetLanguage,
+      from_cache: false,
+    };
+  }
+
   try {
     return await api.post<TranslationResult>(`/demo/messages/${messageId}/translate`);
   } catch (err: any) {

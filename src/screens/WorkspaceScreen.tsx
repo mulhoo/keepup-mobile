@@ -64,7 +64,7 @@ function isBlueHue(hex: string): boolean {
 }
 
 export const WorkspaceScreen = ({navigation, route}: any) => {
-  const {role, user} = route.params as {role: DemoRole; user: SessionUser};
+  const {role, user, restoreSeasonId} = route.params as {role: DemoRole; user: SessionUser; restoreSeasonId?: number};
 
   // Workspace state
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -104,8 +104,9 @@ export const WorkspaceScreen = ({navigation, route}: any) => {
       .then(data => {
         setSeasons(data);
         if (data.length > 0) {
-          setActiveSeason(data[0]);
-          setActiveSchoolId(data[0].school.id);
+          const initial = (restoreSeasonId && data.find(s => s.id === restoreSeasonId)) || data[0];
+          setActiveSeason(initial);
+          setActiveSchoolId(initial.school.id);
         }
       })
       .catch(() => setError(true))

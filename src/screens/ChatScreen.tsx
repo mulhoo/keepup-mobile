@@ -381,7 +381,7 @@ export const ChatScreen = ({navigation, route}: any) => {
         {text: 'Leave', style: 'destructive', onPress: async () => {
           try {
             await leaveChannel(channel.id);
-            navigation.goBack();
+            navigation.replace('ChannelList', {role, user, restoreSeasonId: channel.season_id});
           } catch {
             Alert.alert('Error', 'Could not leave the channel. Please try again.');
           }
@@ -586,7 +586,7 @@ export const ChatScreen = ({navigation, route}: any) => {
   return (
     <SafeAreaView style={[styles.safe, {backgroundColor: bg}]}>
       <View style={[styles.header, {backgroundColor: bg, borderBottomColor: bd}]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.replace('ChannelList', {role, user, restoreSeasonId: channel.season_id})} style={styles.backBtn}>
           <Text style={[styles.backText, {color: acc}]}>‹</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>

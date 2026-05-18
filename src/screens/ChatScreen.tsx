@@ -2,7 +2,7 @@ import React, {useState, useEffect, useRef, useCallback, useMemo} from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Alert, Modal, Pressable, Image,
+  ActivityIndicator, Alert, Modal, Pressable, Image, Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {
@@ -146,8 +146,10 @@ export const ChatScreen = ({navigation, route}: any) => {
   const [translating, setTranslating] = useState<Record<number, boolean>>({});
   const [onDeviceModelState, setOnDeviceModelState] = useState(getModelLoadState);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<'default' | 'success'>('default');
   const [analyzingDots, setAnalyzingDots] = useState('');
+  const [sendResult, setSendResult] = useState<'success' | null>(null);
+  const sendResultTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const spinAnim = useRef(new Animated.Value(0)).current;
   const infoIconRef = useRef<TouchableOpacity>(null);
   const listRef = useRef<FlatList>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -180,6 +182,19 @@ export const ChatScreen = ({navigation, route}: any) => {
     const id = setInterval(() => setAnalyzingDots(d => d.length >= 3 ? '' : d + '.'), 400);
     return () => clearInterval(id);
   }, [analyzing, sending]);
+
+  useEffect(() => {
+    if (!analyzing && !sending) { spinAnim.setValue(0); return; }
+    const loop = Animated.loop(
+      Animated.timing(spinAnim, {toValue: 1, duration: 1200, useNativeDriver: true}),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [analyzing, sending, spinAnim]);
+
+  useEffect(() => {
+    return () => { if (sendResultTimer.current) clearTimeout(sendResultTimer.current); };
+  }, []);
 
   // Subscribe to on-device model load state and pre-warm if any on_device messages exist
   useEffect(() => {
@@ -246,8 +261,9 @@ export const ChatScreen = ({navigation, route}: any) => {
       } else if (tier === 'questionable') {
         showToast('Your message was flagged for coach review', 5000);
       } else {
-        const msg = isStudent ? 'Message sent' : 'Approved ✓ Message delivered';
-        showToast(msg, 2500, 'success');
+        setSendResult('success');
+        if (sendResultTimer.current) clearTimeout(sendResultTimer.current);
+        sendResultTimer.current = setTimeout(() => { setSendResult(null); sendResultTimer.current = null; }, 2500);
       }
     } catch (err: any) {
       const data = err?.response?.data;
@@ -316,10 +332,9 @@ export const ChatScreen = ({navigation, route}: any) => {
     }
   }
 
-  function showToast(msg: string, duration = 3000, type: 'default' | 'success' = 'default') {
+  function showToast(msg: string, duration = 3000) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastMsg(msg);
-    setToastType(type);
     toastTimer.current = setTimeout(() => { setToastMsg(null); toastTimer.current = null; }, duration);
   }
 
@@ -588,7 +603,7 @@ export const ChatScreen = ({navigation, route}: any) => {
       </View>
 
       {toastMsg ? (
-        <View style={[styles.toastBanner, toastType === 'success' && styles.toastBannerSuccess]}>
+        <View style={styles.toastBanner}>
           <Text style={styles.toastText}>{toastMsg}</Text>
         </View>
       ) : null}
@@ -607,10 +622,23 @@ export const ChatScreen = ({navigation, route}: any) => {
           ListEmptyComponent={<Text style={[styles.emptyText, {color: ts}]}>No messages yet. Say something!</Text>}
         />
 
-        {(analyzing || sending) && (
-          <View style={[styles.analyzingBar, {backgroundColor: acc + '22', borderTopColor: acc + '55'}]}>
-            <ActivityIndicator size="small" color={acc} />
-            <Text style={[styles.analyzingText, {color: acc}]}>Gemma reviewing your message{analyzingDots}</Text>
+        {(analyzing || sending || sendResult) && (
+          <View style={[
+            styles.analyzingBar,
+            sendResult === 'success'
+              ? {backgroundColor: 'rgba(22,101,52,0.15)', borderTopColor: 'rgba(22,101,52,0.4)'}
+              : {backgroundColor: acc + '22', borderTopColor: acc + '55'},
+          ]}>
+            <Animated.Image
+              source={require('../../assets/branding/keepup-icon-white.png')}
+              style={[styles.analyzingIcon, {
+                tintColor: sendResult === 'success' ? '#16a34a' : acc,
+                transform: [{rotate: spinAnim.interpolate({inputRange: [0, 1], outputRange: ['0deg', '360deg']})}],
+              }]}
+            />
+            <Text style={[styles.analyzingText, {color: sendResult === 'success' ? '#16a34a' : acc}]}>
+              {sendResult === 'success' ? 'Approved ✓ Message delivered' : `Gemma reviewing your message${analyzingDots}`}
+            </Text>
           </View>
         )}
 
@@ -894,7 +922,8 @@ const styles = StyleSheet.create({
   dmText: {fontSize: 15, lineHeight: 21},
   dmTime: {fontSize: 10, marginLeft: 4},
   dmTimeMine: {marginLeft: 0, marginRight: 4},
-  analyzingBar: {flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1},
+  analyzingBar:  {flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1},
+  analyzingIcon: {width: 16, height: 16},
   analyzingText: {fontSize: 13},
   compose: {flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1},
   input: {flex: 1, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 120, borderWidth: 1},
@@ -920,7 +949,6 @@ const styles = StyleSheet.create({
   translateHeaderBtn:  {marginLeft: 'auto'},
   translateIcon:       {width: 14, height: 14},
   toastBanner:         {paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center', backgroundColor: 'rgba(24,24,27,0.92)'},
-  toastBannerSuccess:  {backgroundColor: 'rgba(22,101,52,0.92)'},
   toastText:           {fontSize: 13, color: '#F4F4F5', fontWeight: '500'},
   replyCountRight:     {alignSelf: 'flex-end', marginTop: 4},
   actionBtn:           {width: 35, height: 35, borderRadius: 17.5, alignItems: 'center', justifyContent: 'center', overflow: 'hidden'},

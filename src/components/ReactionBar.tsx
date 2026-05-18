@@ -73,10 +73,10 @@ export const ReactionBar = ({messageId, reactions, onReactionsChange, maxVisible
 const styles = StyleSheet.create({
   row:       {flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6},
   rowInline: {flexWrap: 'nowrap', marginTop: 0},
-  chip:      {flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1},
-  chipEmoji: {fontSize: 14},
-  chipImg:   {width: 18, height: 18, borderRadius: 3},
-  chipCount: {fontSize: 12, fontWeight: '600'},
+  chip:      {flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, flexShrink: 0},
+  chipEmoji: {fontSize: 14, flexShrink: 0},
+  chipImg:   {width: 18, height: 18, borderRadius: 3, flexShrink: 0},
+  chipCount: {fontSize: 12, fontWeight: '600', flexShrink: 0, minWidth: 12},
   addBtn:    {width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center'},
   addBtnText:{fontSize: 16, lineHeight: 20},
 });

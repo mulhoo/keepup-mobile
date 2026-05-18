@@ -146,6 +146,7 @@ export const ChatScreen = ({navigation, route}: any) => {
   const [translating, setTranslating] = useState<Record<number, boolean>>({});
   const [onDeviceModelState, setOnDeviceModelState] = useState(getModelLoadState);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [analyzingDots, setAnalyzingDots] = useState('');
   const infoIconRef = useRef<TouchableOpacity>(null);
   const listRef = useRef<FlatList>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -172,6 +173,12 @@ export const ChatScreen = ({navigation, route}: any) => {
       .then(me => setPreferredLanguage(me.preferred_language ?? ''))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!analyzing && !sending) { setAnalyzingDots(''); return; }
+    const id = setInterval(() => setAnalyzingDots(d => d.length >= 3 ? '' : d + '.'), 400);
+    return () => clearInterval(id);
+  }, [analyzing, sending]);
 
   // Subscribe to on-device model load state and pre-warm if any on_device messages exist
   useEffect(() => {
@@ -600,7 +607,7 @@ export const ChatScreen = ({navigation, route}: any) => {
         {(analyzing || sending) && (
           <View style={[styles.analyzingBar, {backgroundColor: sf, borderTopColor: bd}]}>
             <ActivityIndicator size="small" color={acc} />
-            <Text style={[styles.analyzingText, {color: acc}]}>Gemma reviewing your message…</Text>
+            <Text style={[styles.analyzingText, {color: acc}]}>Gemma reviewing your message{analyzingDots}</Text>
           </View>
         )}
 

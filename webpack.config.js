@@ -95,6 +95,7 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: path.resolve(appDirectory, 'web/index.html'),
+      favicon: path.resolve(appDirectory, 'web/favicon.png'),
     }),
     new webpack.DefinePlugin({
       __DEV__: JSON.stringify(true),

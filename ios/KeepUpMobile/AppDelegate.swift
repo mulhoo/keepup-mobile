@@ -22,6 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
+    window?.tintColor = UIColor(red: 0.059, green: 0.090, blue: 0.165, alpha: 1.0)
 
     factory.startReactNative(
       withModuleName: "KeepUpMobile",

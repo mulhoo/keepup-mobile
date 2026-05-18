@@ -146,6 +146,7 @@ export const ChatScreen = ({navigation, route}: any) => {
   const [translating, setTranslating] = useState<Record<number, boolean>>({});
   const [onDeviceModelState, setOnDeviceModelState] = useState(getModelLoadState);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'default' | 'success'>('default');
   const [analyzingDots, setAnalyzingDots] = useState('');
   const infoIconRef = useRef<TouchableOpacity>(null);
   const listRef = useRef<FlatList>(null);
@@ -230,11 +231,11 @@ export const ChatScreen = ({navigation, route}: any) => {
     if (!content || sending) return;
     const replyToId = replyTo?.id;
     setReplyTo(null);
+    setText('');
     setSending(true);
     try {
       const result = await sendMessage(channel.id, content, channel.channel_type, replyToId);
       const tier = result.moderation.tier;
-      setText('');
       setMessages(prev => [...prev, {...result.message, content: result.message.content ?? content, tier}]);
       setTimeout(() => listRef.current?.scrollToOffset({offset: 0, animated: true}), 100);
       if (result.message.flag_action === 'blocked') {
@@ -245,7 +246,8 @@ export const ChatScreen = ({navigation, route}: any) => {
       } else if (tier === 'questionable') {
         showToast('Your message was flagged for coach review', 5000);
       } else {
-        showToast('Message sent', 2000);
+        const msg = isStudent ? 'Message sent' : 'Approved ✓ Message delivered';
+        showToast(msg, 2500, 'success');
       }
     } catch (err: any) {
       const data = err?.response?.data;
@@ -314,9 +316,10 @@ export const ChatScreen = ({navigation, route}: any) => {
     }
   }
 
-  function showToast(msg: string, duration = 3000) {
+  function showToast(msg: string, duration = 3000, type: 'default' | 'success' = 'default') {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastMsg(msg);
+    setToastType(type);
     toastTimer.current = setTimeout(() => { setToastMsg(null); toastTimer.current = null; }, duration);
   }
 
@@ -585,7 +588,7 @@ export const ChatScreen = ({navigation, route}: any) => {
       </View>
 
       {toastMsg ? (
-        <View style={styles.toastBanner}>
+        <View style={[styles.toastBanner, toastType === 'success' && styles.toastBannerSuccess]}>
           <Text style={styles.toastText}>{toastMsg}</Text>
         </View>
       ) : null}
@@ -917,6 +920,7 @@ const styles = StyleSheet.create({
   translateHeaderBtn:  {marginLeft: 'auto'},
   translateIcon:       {width: 14, height: 14},
   toastBanner:         {paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center', backgroundColor: 'rgba(24,24,27,0.92)'},
+  toastBannerSuccess:  {backgroundColor: 'rgba(22,101,52,0.92)'},
   toastText:           {fontSize: 13, color: '#F4F4F5', fontWeight: '500'},
   replyCountRight:     {alignSelf: 'flex-end', marginTop: 4},
   actionBtn:           {width: 35, height: 35, borderRadius: 17.5, alignItems: 'center', justifyContent: 'center', overflow: 'hidden'},

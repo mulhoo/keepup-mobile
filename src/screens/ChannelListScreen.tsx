@@ -69,7 +69,7 @@ export const ChannelListScreen = ({navigation, route}: any) => {
 
   async function handleSwitchProfile() {
     await logout();
-    navigation.replace('RoleSelect');
+    navigation.reset('RoleSelect');
   }
 
   return (

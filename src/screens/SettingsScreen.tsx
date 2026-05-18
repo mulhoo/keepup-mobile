@@ -142,7 +142,7 @@ export const SettingsScreen = ({navigation, route}: Props) => {
   async function handleSwitchProfile() {
     Alert.alert('Switch Profile', 'This will log you out of the current demo profile.', [
       {text: 'Cancel', style: 'cancel'},
-      {text: 'Switch', style: 'destructive', onPress: async () => { await setTheme(DEFAULT_THEME); await logout(); navigation.replace('RoleSelect'); }},
+      {text: 'Switch', style: 'destructive', onPress: async () => { await setTheme(DEFAULT_THEME); await logout(); navigation.reset('RoleSelect'); }},
     ]);
   }
 

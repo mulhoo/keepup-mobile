@@ -18,6 +18,8 @@ function makeNavigation(stack: StackEntry[], setStack: React.Dispatch<React.SetS
       setStack(s => [...s, {name, params}]),
     replace: (name: ScreenName, params?: any) =>
       setStack(s => [...s.slice(0, -1), {name, params}]),
+    reset: (name: ScreenName, params?: any) =>
+      setStack([{name, params}]),
     goBack: () => setStack(s => s.length > 1 ? s.slice(0, -1) : s),
     push: (name: ScreenName, params?: any) =>
       setStack(s => [...s, {name, params}]),

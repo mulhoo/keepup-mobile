@@ -2,6 +2,7 @@ import React, {useState, useEffect, useRef, useCallback, useMemo} from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator,
+  Animated, Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {
@@ -29,13 +30,32 @@ interface Props {
   route: any;
 }
 
+function SpinningIcon({source, style}: {source: any; style: any}) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, {toValue: 1, duration: 1200, useNativeDriver: true}),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+  return (
+    <Animated.Image
+      source={source}
+      style={[style, {transform: [{rotate: anim.interpolate({inputRange: [0, 1], outputRange: ['0deg', '360deg']})}]}]}
+    />
+  );
+}
+
 export const ThreadScreen = ({navigation, route}: Props) => {
-  const {parentMessageId, channelName, currentUserId, seasonId} = route.params as {
+  const {parentMessageId, channelName, currentUserId, seasonId, role} = route.params as {
     parentMessageId: number;
     channelName: string;
     currentUserId: number;
     seasonId: number;
+    role?: string;
   };
+  const isStaff = role && role !== 'student';
   const {colors} = useTheme();
   const bg   = colors.color_background;
   const sf   = colors.color_surface;
@@ -53,6 +73,10 @@ export const ThreadScreen = ({navigation, route}: Props) => {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingDots, setAnalyzingDots] = useState('');
+  const [sendResult, setSendResult] = useState<'success' | null>(null);
+  const sendResultTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pickerMessageId, setPickerMessageId] = useState<number | null>(null);
   const [profileUserId, setProfileUserId] = useState<number | null>(null);
   const listRef = useRef<FlatList>(null);
@@ -65,6 +89,16 @@ export const ThreadScreen = ({navigation, route}: Props) => {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!analyzing && !sending) { setAnalyzingDots(''); return; }
+    const id = setInterval(() => setAnalyzingDots(d => d.length >= 3 ? '' : d + '.'), 400);
+    return () => clearInterval(id);
+  }, [analyzing, sending]);
+
+  useEffect(() => {
+    return () => { if (sendResultTimer.current) clearTimeout(sendResultTimer.current); };
+  }, []);
+
   function handleReactionsChange(messageId: number, updated: Reaction[]) {
     if (parent && parent.id === messageId) setParent(p => p ? {...p, reactions: updated} : p);
     setReplies(prev => prev.map(m => m.id === messageId ? {...m, reactions: updated} : m));
@@ -73,13 +107,19 @@ export const ThreadScreen = ({navigation, route}: Props) => {
   async function handleSend() {
     const content = text.trim();
     if (!content || sending) return;
-    setSending(true);
     setText('');
+    if (isStaff) setAnalyzing(true);
+    setSending(true);
     try {
       const reply = await sendThreadReply(parentMessageId, content);
       setReplies(prev => [...prev, reply]);
       setTimeout(() => listRef.current?.scrollToEnd({animated: true}), 100);
+      if (isStaff) {
+        setSendResult('success');
+        sendResultTimer.current = setTimeout(() => setSendResult(null), 2500);
+      }
     } finally {
+      setAnalyzing(false);
       setSending(false);
     }
   }
@@ -155,6 +195,19 @@ export const ThreadScreen = ({navigation, route}: Props) => {
             renderItem={({item}) => renderBubble(item)}
             onContentSizeChange={() => listRef.current?.scrollToEnd({animated: false})}
           />
+          {(analyzing || sending || sendResult) && isStaff && (
+            <View style={[styles.analyzingBar, sendResult === 'success'
+              ? {backgroundColor: 'rgba(22,101,52,0.15)', borderTopColor: 'rgba(22,101,52,0.4)'}
+              : {backgroundColor: acc + '22', borderTopColor: acc + '55'}]}>
+              <SpinningIcon
+                source={require('../../assets/branding/keepup-icon-blwh-inverted.png')}
+                style={[styles.analyzingIcon, {tintColor: sendResult === 'success' ? '#16a34a' : acc}]}
+              />
+              <Text style={[styles.analyzingText, {color: sendResult === 'success' ? '#16a34a' : acc}]}>
+                {sendResult === 'success' ? 'Approved ✓ Message delivered' : `Gemma reviewing your message${analyzingDots}`}
+              </Text>
+            </View>
+          )}
           <View style={[styles.inputRow, {backgroundColor: bg, borderTopColor: bd}]}>
             <TextInput
               style={[styles.input, {backgroundColor: sf, borderColor: bd, color: tp}]}
@@ -213,4 +266,7 @@ const styles = StyleSheet.create({
   input: {flex: 1, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 120, borderWidth: 1},
   sendBtn: {width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center'},
   sendBtnText: {fontSize: 20, fontWeight: '700'},
+  analyzingBar: {flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1},
+  analyzingIcon: {width: 16, height: 16},
+  analyzingText: {fontSize: 13, fontWeight: '600'},
 });

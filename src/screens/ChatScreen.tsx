@@ -303,6 +303,7 @@ export const ChatScreen = ({navigation, route}: any) => {
       channelName: toTitleCase(channel.name),
       currentUserId: user.id,
       seasonId: channel.season_id,
+      role,
     });
   }
 

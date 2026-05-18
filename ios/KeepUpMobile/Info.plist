@@ -51,5 +51,65 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>keepup-icon-border-blue</string>
+			</array>
+			<key>UIPrerenderedIcon</key>
+			<false/>
+		</dict>
+		<key>CFBundleAlternateIcons</key>
+		<dict>
+			<key>keepup-icon-border-blue</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>keepup-icon-border-blue</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>keepup-icon-blue</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>keepup-icon-blue</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>keepup-icon-blwh</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>keepup-icon-blwh</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>keepup-icon-blwh-inverted</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>keepup-icon-blwh-inverted</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>keepup-icon-white</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>keepup-icon-white</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

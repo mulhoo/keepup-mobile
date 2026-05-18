@@ -1,49 +1,40 @@
 import axios, {AxiosInstance, AxiosRequestConfig, AxiosResponse} from 'axios';
 import {API_BASE_URL, API_TIMEOUT} from '@env';
 
+let _token: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  _token = token;
+}
+
+export function getAuthToken(): string | null {
+  return _token;
+}
+
 class ApiService {
   private client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
-      timeout: parseInt(API_TIMEOUT, 10) || 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      timeout: parseInt(API_TIMEOUT, 10) || 15000,
+      headers: {'Content-Type': 'application/json'},
     });
 
-    this.setupInterceptors();
-  }
-
-  private setupInterceptors() {
-    this.client.interceptors.request.use(
-      config => {
-        // Add auth token here if needed
-        // const token = await getAuthToken();
-        // if (token) {
-        //   config.headers.Authorization = `Bearer ${token}`;
-        // }
-        return config;
-      },
-      error => {
-        return Promise.reject(error);
-      },
-    );
+    this.client.interceptors.request.use(config => {
+      if (_token) {
+        config.headers.Authorization = `Bearer ${_token}`;
+      }
+      return config;
+    });
 
     this.client.interceptors.response.use(
       response => response,
       error => {
-        // Handle errors globally
         if (error.response) {
-          // Server responded with error status
           console.error('API Error:', error.response.status, error.response.data);
-        } else if (error.request) {
-          // Request made but no response
-          console.error('Network Error:', error.message);
         } else {
-          // Something else happened
-          console.error('Error:', error.message);
+          console.error('Network Error:', error.message);
         }
         return Promise.reject(error);
       },
@@ -55,29 +46,12 @@ class ApiService {
     return response.data;
   }
 
-  async post<T>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
+  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.post(url, data, config);
     return response.data;
   }
 
-  async put<T>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
-    const response: AxiosResponse<T> = await this.client.put(url, data, config);
-    return response.data;
-  }
-
-  async patch<T>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
+  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.patch(url, data, config);
     return response.data;
   }

@@ -1,290 +1,114 @@
 # KeepUp Mobile
 
-A cross-platform mobile application built with React Native for iOS and Android, designed to work with an external backend API.
-
-## Features
-
-- Cross-platform support for iOS and Android
-- Navigation with React Navigation
-- API service layer with Axios for backend integration
-- Environment configuration support
-- TypeScript support
-- Example screens demonstrating API integration
+React Native 0.82 (bare, no Expo) — iOS and Android. The primary surface for students, parents, and coaches in the KeepUp sports communication platform.
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+- Node.js >= 20
+- For iOS: Xcode, CocoaPods, Ruby + Bundler (`gem install bundler`)
+- For Android: Android Studio, Android SDK, JDK 17+
 
-- Node.js (v18 or higher)
-- npm or yarn
-- For iOS development:
-  - Xcode (latest version)
-  - CocoaPods
-  - Ruby (bundler)
-- For Android development:
-  - Android Studio
-  - Android SDK
-  - Java Development Kit (JDK)
+Full environment setup: https://reactnative.dev/docs/set-up-your-environment
 
-> **Note**: Make sure you have completed the [React Native Environment Setup](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Local setup
 
-## Backend Configuration
+### 1. Start the backend
 
-1. Copy the example environment file:
-   ```sh
-   cp .env.example .env
-   ```
+The app talks to [keepup-backend](../keepup-backend), which must be running first.
 
-2. Edit `.env` and update `API_BASE_URL` to point to your backend:
-   ```
-   API_BASE_URL=https://your-backend-api.com/api
-   API_TIMEOUT=10000
-   ```
+```sh
+cd ../keepup-backend
+bundle install
+bin/rails db:create db:migrate db:seed
+bin/rails server   # runs on localhost:3000
+```
 
-## Installation
+The seed builds the full demo scenario — schools, sports, seasons, users, and roles.
 
-1. Install dependencies:
-   ```sh
-   npm install
-   ```
+### 2. Configure the mobile app
 
-2. For iOS, install CocoaPods dependencies:
-   ```sh
-   bundle install
-   cd ios && bundle exec pod install && cd ..
-   ```
+```sh
+cp .env.example .env
+```
 
-## Running the App
+Edit `.env`:
 
-### Start Metro
+```
+API_BASE_URL=http://localhost:3000
+API_TIMEOUT=10000
+```
 
-First, start the Metro bundler:
+> On a physical device, replace `localhost` with your machine's local IP (e.g. `192.168.1.x`).
+
+### 3. Install dependencies
+
+```sh
+npm install
+```
+
+iOS only — install pods:
+
+```sh
+bundle install
+cd ios && bundle exec pod install && cd ..
+```
+
+### 4. Run the app
+
+Start Metro in one terminal:
 
 ```sh
 npm start
 ```
 
-### Run on iOS
-
-In a new terminal:
+Then in another terminal:
 
 ```sh
-npm run ios
+npm run ios      # opens iOS Simulator
+npm run android  # requires emulator or connected device
 ```
 
-Or open `ios/KeepUpMobile.xcworkspace` in Xcode and press Run.
+You can also open `ios/KeepUpMobile.xcworkspace` in Xcode and press Run, or open the `android/` folder in Android Studio.
 
-### Run on Android
+## Demo flow
 
-Make sure you have an Android emulator running or a device connected, then:
+1. **Role Select** — pick a role (Student, Student Captain, Head Coach, Parent). Hits `POST /demo/session`.
+2. **Channel List** — shows your channels for the current season. Tap a channel to open chat.
+3. **Chat** — send messages. Student messages run through on-device Gemma moderation before being sent; coach/parent messages are moderated server-side.
 
-```sh
-npm run android
-```
-
-Or open the `android` folder in Android Studio and press Run.
-
-## Project Structure
+## Project structure
 
 ```
-KeepUpMobile/
-├── src/
-│   ├── components/      # Reusable UI components
-│   ├── navigation/      # Navigation configuration
-│   │   └── AppNavigator.tsx
-│   ├── screens/         # Screen components
-│   │   ├── HomeScreen.tsx
-│   │   └── DetailsScreen.tsx
-│   ├── services/        # API services and backend integration
-│   │   ├── api.ts       # Main API client
-│   │   └── exampleService.ts  # Example API service
-│   ├── types/           # TypeScript type definitions
-│   │   └── env.d.ts
-│   └── utils/           # Utility functions
-├── .env                 # Environment variables (not in git)
-├── .env.example         # Example environment variables
-└── App.tsx             # Main application component
+src/
+├── navigation/
+│   └── AppNavigator.tsx      # RoleSelect → ChannelList → Chat
+├── screens/
+│   ├── RoleSelectScreen.tsx  # demo login
+│   ├── ChannelListScreen.tsx # channel picker
+│   └── ChatScreen.tsx        # messaging + moderation UI
+└── services/
+    ├── api.ts                # axios instance with Bearer auth
+    ├── auth.ts               # login, logout, fetchChannels
+    └── messages.ts           # fetchMessages, sendMessage
 ```
-
-## Working with Your Backend
-
-### API Service Layer
-
-The app includes a pre-configured API service layer in `src/services/api.ts`. It provides methods for all HTTP verbs:
-
-- `api.get<T>(url, config?)`
-- `api.post<T>(url, data?, config?)`
-- `api.put<T>(url, data?, config?)`
-- `api.patch<T>(url, data?, config?)`
-- `api.delete<T>(url, config?)`
-
-### Creating API Services
-
-Create service files for different features. See `src/services/exampleService.ts` for reference:
-
-```typescript
-// src/services/userService.ts
-import {api} from './api';
-
-export const userService = {
-  async getProfile() {
-    return await api.get('/user/profile');
-  },
-
-  async updateProfile(data: any) {
-    return await api.put('/user/profile', data);
-  },
-};
-```
-
-### Adding Authentication
-
-To add authentication tokens, modify the request interceptor in `src/services/api.ts`:
-
-```typescript
-this.client.interceptors.request.use(
-  async config => {
-    const token = await AsyncStorage.getItem('authToken'); // or your token storage
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  }
-);
-```
-
-### Using Services in Components
-
-Import and use services in your screens:
-
-```typescript
-import {exampleService} from '../services/exampleService';
-
-const MyScreen = () => {
-  const [data, setData] = useState([]);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const result = await exampleService.fetchItems();
-      setData(result);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  // ... rest of component
-};
-```
-
-## Development Tips
-
-### Hot Reload
-
-The app supports Fast Refresh. When you save changes, they will automatically update in the running app.
-
-To force a reload:
-- **Android**: Press <kbd>R</kbd> twice or <kbd>Ctrl</kbd>+<kbd>M</kbd> (Windows/Linux) / <kbd>Cmd</kbd>+<kbd>M</kbd> (macOS) for Dev Menu
-- **iOS**: Press <kbd>R</kbd> in the simulator or <kbd>Cmd</kbd>+<kbd>D</kbd> for Dev Menu
-
-### Debugging
-
-- Open React Native debugger: Shake device or press <kbd>Cmd</kbd>+<kbd>D</kbd> (iOS) / <kbd>Cmd</kbd>+<kbd>M</kbd> (Android)
-- View console logs in the Metro terminal
-- Use React DevTools for component inspection
-
-### Environment Variables
-
-Environment variables are loaded from the `.env` file using `react-native-dotenv`. To add new variables:
-
-1. Add to `.env`:
-   ```
-   NEW_VARIABLE=value
-   ```
-
-2. Add type definition in `src/types/env.d.ts`:
-   ```typescript
-   declare module '@env' {
-     export const NEW_VARIABLE: string;
-   }
-   ```
-
-3. Import and use:
-   ```typescript
-   import {NEW_VARIABLE} from '@env';
-   ```
-
-## Adding New Screens
-
-1. Create a new screen component in `src/screens/`:
-   ```typescript
-   // src/screens/NewScreen.tsx
-   export const NewScreen = ({navigation}: any) => {
-     return (
-       <View>
-         <Text>New Screen</Text>
-       </View>
-     );
-   };
-   ```
-
-2. Add the screen to the navigator in `src/navigation/AppNavigator.tsx`:
-   ```typescript
-   <Stack.Screen
-     name="NewScreen"
-     component={NewScreen}
-     options={{title: 'New Screen'}}
-   />
-   ```
-
-3. Navigate to it from other screens:
-   ```typescript
-   navigation.navigate('NewScreen');
-   ```
 
 ## Troubleshooting
 
-### iOS Build Issues
-
-If you encounter build issues on iOS:
-```sh
-cd ios
-bundle exec pod install --repo-update
-cd ..
-```
-
-### Metro Bundler Issues
-
-If Metro is not starting or has cache issues:
+**Metro cache issues:**
 ```sh
 npm start -- --reset-cache
 ```
 
-### Android Build Issues
-
-If you encounter Android build issues:
+**iOS pod errors:**
 ```sh
-cd android
-./gradlew clean
-cd ..
+cd ios && bundle exec pod install --repo-update && cd ..
 ```
 
-### Common Issues
+**Android build fails:**
+```sh
+cd android && ./gradlew clean && cd ..
+```
 
-- **"Unable to resolve module"**: Try `npm install` and restart Metro
-- **iOS pods error**: Delete `ios/Pods` and `ios/Podfile.lock`, then run `pod install` again
-- **Android build fails**: Check that `ANDROID_HOME` environment variable is set correctly
+**"Unable to resolve module":** Run `npm install` and restart Metro.
 
-## Learn More
-
-- [React Native Documentation](https://reactnative.dev/docs/getting-started)
-- [React Navigation Documentation](https://reactnavigation.org/docs/getting-started)
-- [Axios Documentation](https://axios-http.com/docs/intro)
-- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
+**iOS pods still broken:** Delete `ios/Pods` and `ios/Podfile.lock`, then re-run `pod install`.
